@@ -1,0 +1,206 @@
+# Importing required libraries
+import socket
+import tkinter as tk
+from tkinter import *
+import threading
+
+def quit(root):
+    print('[CLOSED] Server has been closed')
+    root.destroy()
+    server.close()
+
+def update(Label1,root):
+    # updates count
+    global USER_STATUS
+    if USER_STATUS == True:
+        PRINT_UI = count
+        Label1.config(text = str(PRINT_UI))
+    else:
+        Label1.config(text = "0")
+    root.after(1000, lambda: update(Label1, root))
+
+def show_names(Label2,root):
+    # updates active users in server
+    if USER_STATUS == True:
+            Label2.config(text="\t".join(map(str, CLIENTS)))
+    else:
+        Label2.config(text = "No Client Connected")
+    root.after(1000, lambda: show_names(Label2, root))
+
+def tkinter_display():
+    # Root, On top of root is Screen
+    root = tk.Tk()
+    root.title("Server")
+
+    screen = tk.Canvas(root, height= 700, width= 700)
+    screen.pack()
+
+    # GUI Title
+    title1 = tk.Label(screen, text="File Transfer system")
+    title1.pack(pady=20)
+    title2 = tk.Label(screen, text="Server")
+    title2.pack(pady=5)
+
+    # GUI Active usernames and Total number of users 
+    title_label1 = tk.Label(screen,text = "Active Usernames in this Session ->")
+    title_label1.pack(pady=20, padx=200)
+    Label1 = tk.Label(screen)
+    Label1.pack(pady=20)
+
+    title_label2 = tk.Label(screen, text = "Name of Users in this Session ->")
+    title_label2.pack(pady=20, padx=200)   
+    Label2 = tk.Label(screen)
+    Label2.pack(pady=20)
+
+    update(Label1,root)
+    show_names(Label2,root)
+
+    button_quit = tk.Button(screen, text='Exit Program', command =lambda: quit(root))
+    button_quit.pack(pady=50)
+
+    root.mainloop()
+
+class Server():
+    # Server code
+    def __init__(self,client,addr):
+        self.client = client
+        self.addr = addr
+        self.thread1 = None
+
+    def usernameChecker(self):
+        FLAG = False
+        try:
+            while not FLAG:
+                username = self.client.recv(BUFFER).decode(FORMAT)
+                print(f'Username sent from the client is {username}')
+                if (username in CLIENTS):
+                    message = 'Username Exists and is Active'
+                    self.client.send(message.encode(FORMAT))
+                    continue
+                FLAG = True
+
+            if username not in CLIENTS:
+                CLIENTS[username] = self.addr
+                print(f'{username} added to the list')
+                self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
+                
+            global USER_STATUS
+            global count
+
+            USER_STATUS =True
+            count += 1
+            print(CLIENTS)
+
+            return username
+        
+        except:
+            print(f'[ERROR] Error at username at server side..')
+            server.close()
+    
+    def file_transfer(self,client):
+        try:
+            while True:
+                    # Open server lexicon
+                    f = open('server.txt', "r")
+                    serverlexicon = f.read()
+                    LEXICON_LIST = serverlexicon.split()
+
+                    output = ""
+                    print ('[WAITING] Awaiting command from client..')
+                    print('[WAITING] What is the filename')
+                    # filename asked
+                    filename = client.recv(BUFFER).decode(FORMAT)
+                    print('filename is :',filename)
+
+                    # contents of user supplied text comapred to the lexcion present in server
+                    data = client.recv(BUFFER).decode(FORMAT)
+                    for input_word in data.split():
+                        if input_word in LEXICON_LIST:
+                            out = f"[{input_word}] "
+                            output += out
+                        else:
+                            output += f"{input_word} "
+
+                    print('op is : ',output)
+                    client.send(output.encode(FORMAT))
+                    break
+
+        except Exception as e:
+            print(e)
+            print('[ERROR] Error at the file transactions section at Server')
+    
+    def delete_clients(self,username):
+        global count
+        global USER_STATUS
+        del CLIENTS[username]
+        count -=1
+        self.thread1.join()
+        USER_STATUS = False
+        
+    def handle(self):
+        global count
+        global USER_STATUS
+        username = self.usernameChecker()
+        print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
+        try:
+            while USER_STATUS:
+                message = self.client.recv(BUFFER).decode(FORMAT)
+
+                if message== 'END':
+                    self.delete_clients(username)
+                    continue
+                
+                if message == 'SENDGET':
+                    self.file_transfer(self.client)
+                    continue
+                    
+        except:
+            pass
+
+    def start(self):
+        # Forking a thread for each client
+        self.thread1 = threading.Thread(target= self.handle, args=())
+        self.thread1.start()  
+        self.thread1.join()
+
+
+# Main program
+if __name__ == '__main__':
+    
+    # Global constants
+    BUFFER = 1024
+    PORT = 5050
+    HOST = socket.gethostbyname(socket.gethostname())
+    ADDR = (HOST,PORT)
+    FORMAT = 'utf-8'
+    DISCONNECT_MSG = "[DISCONNECT] Disconnected."
+
+    # Global variables
+    CLIENTS = {}
+    ADDRESSES = {}
+    count = 0
+    USER_STATUS = False
+
+    try:
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.bind(ADDR)
+        server.listen()
+
+        print('[STARTING] server is starting at HOST: ',HOST +' and PORT: ', PORT)
+        print('[LISTENING] Server is listening..')
+
+        # create a new thread for the GUI
+        threading.Thread(target = tkinter_display).start()
+
+        while True:
+            # Handles connection from incoming clients
+            client,addr = server.accept()
+            client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
+            # save client and client address to the ADDRESS dictionary 
+            ADDRESSES[client] = addr
+            Server(client, addr).start()
+    
+    except socket.error as e:
+        print('[ERROR] Server could not be established at main')
+        server.close()
