@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import *
 import threading
 
+# function to close the gui once called
 def quitbutton():
     client.send('END'.encode(FORMAT))
     print('[CLOSED] Client has been closed')
@@ -13,9 +14,11 @@ def user_label(VALUE):
     # configures userlabel
     username_label = Label1.config(text=VALUE)
 
+# function to delete the contents of label
 def del_user_entry1():
     return Button1.pack_forget(), Entry1.pack_forget()
 
+# function to delete the contents of label
 def del_user_entry2():
     return Button1.pack_forget(), Entry1.pack_forget()
 
@@ -25,8 +28,10 @@ def user_entry(Button, intvalue):
     Entry1.delete(0, 'end')
     return username_entry
 
+# Client class for server functionalities
 class Client():
     
+    # function to check the username of the client
     def usernamecheck(self,client):
         
         USER_STATUS = False
@@ -40,9 +45,10 @@ class Client():
                 print(response == 'Username Exists and is Active')
                 if response == 'Username Exists and is Active':
                     print(f'[USERNAME TAKEN] {response}')
-                    # Label1 = tk.Label(screen, text='Username Taken & Active')
                     Label1.config(text ='Username Exists and is Active' )
                     continue
+
+                # User_status is set to true if the username is accepted and the client has gained entry post username checking
                 USER_STATUS = True
 
             return (USER_STATUS , username)
@@ -74,7 +80,7 @@ class Client():
                     print(f'Sent {data!r}')
                     data = f.read(BUFFER)
                 
-            # response or the spell checked data from server to client
+                # response or the spell checked data from server to client
                 response = client.recv(BUFFER).decode(FORMAT)
                 print('response is :' ,response)
                 f = open(filename, "w")
@@ -102,6 +108,7 @@ if __name__ == '__main__':
 
     try:
 
+        # main GUI of the client with functions called from Client class
         root = tk.Tk()
         root.title("Client")
 
@@ -138,7 +145,6 @@ if __name__ == '__main__':
 
         # Function to ask for the username
         USER_STATUS, username= Client().usernamecheck(client)
-        print(f'{USER_STATUS} and {username}')
 
         button_quit = tk.Button(screen, text='Exit Program', command = quitbutton)
         button_quit.pack(side=TOP, expand=True, fill=BOTH)

@@ -4,11 +4,13 @@ import tkinter as tk
 from tkinter import *
 import threading
 
+# function to close the gui and server once called
 def quit(root):
     print('[CLOSED] Server has been closed')
     root.destroy()
     server.close()
 
+# function to update count on the GUI every second
 def update(Label1,root):
     # updates count
     global USER_STATUS
@@ -19,6 +21,7 @@ def update(Label1,root):
         Label1.config(text = "0")
     root.after(1000, lambda: update(Label1, root))
 
+# function to update the active usernames on the GUI every second
 def show_names(Label2,root):
     # updates active users in server
     if USER_STATUS == True:
@@ -27,6 +30,7 @@ def show_names(Label2,root):
         Label2.config(text = "No Client Connected")
     root.after(1000, lambda: show_names(Label2, root))
 
+# main GUI build for the server
 def tkinter_display():
     # Root, On top of root is Screen
     root = tk.Tk()
@@ -60,6 +64,7 @@ def tkinter_display():
 
     root.mainloop()
 
+# Server class for server functionalities
 class Server():
     # Server code
     def __init__(self,client,addr):
@@ -67,9 +72,11 @@ class Server():
         self.addr = addr
         self.thread1 = None
 
+    # function to check the username of the incoming clients
     def usernameChecker(self):
         FLAG = False
         try:
+            # the following loop runs till the client enetrs an unused username
             while not FLAG:
                 username = self.client.recv(BUFFER).decode(FORMAT)
                 print(f'Username sent from the client is {username}')
@@ -80,6 +87,7 @@ class Server():
                 FLAG = True
 
             if username not in CLIENTS:
+                # add client username and it's address to the clients dictionary
                 CLIENTS[username] = self.addr
                 print(f'{username} added to the list')
                 self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
@@ -97,6 +105,7 @@ class Server():
             print(f'[ERROR] Error at username at server side..')
             server.close()
     
+    # function to check and apply file transfer and lexicon checking
     def file_transfer(self,client):
         try:
             while True:
@@ -108,6 +117,7 @@ class Server():
                     output = ""
                     print ('[WAITING] Awaiting command from client..')
                     print('[WAITING] What is the filename')
+
                     # filename asked
                     filename = client.recv(BUFFER).decode(FORMAT)
                     print('filename is :',filename)
@@ -122,6 +132,7 @@ class Server():
                             output += f"{input_word} "
 
                     print('op is : ',output)
+                    # sends the updated file back to the client
                     client.send(output.encode(FORMAT))
                     break
 
@@ -129,20 +140,25 @@ class Server():
             print(e)
             print('[ERROR] Error at the file transactions section at Server')
     
+    # delete clients and their threads once disconnected
     def delete_clients(self,username):
         global count
         global USER_STATUS
+        # delete the key and its corresponding value in the dictionary
         del CLIENTS[username]
         count -=1
         self.thread1.join()
         USER_STATUS = False
-        
+    
+    # main server function that handles incoming messages from clients    
     def handle(self):
         global count
         global USER_STATUS
+        # check for username
         username = self.usernameChecker()
         print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
         try:
+            # while user is active the following while loop works
             while USER_STATUS:
                 message = self.client.recv(BUFFER).decode(FORMAT)
 
@@ -182,9 +198,11 @@ if __name__ == '__main__':
     USER_STATUS = False
 
     try:
-
+        
+        # server creation
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind(ADDR)
+        # server listens for incoming clients
         server.listen()
 
         print('[STARTING] server is starting at HOST: ',HOST +' and PORT: ', PORT)
