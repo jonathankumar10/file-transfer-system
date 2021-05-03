@@ -3,6 +3,7 @@ import socket
 import tkinter as tk
 from tkinter import *
 import threading
+import time
 
 # function to close the gui and server once called
 def quit(root):
@@ -25,7 +26,7 @@ def update(Label1,root):
 def show_names(Label2,root):
     # updates active users in server
     if USER_STATUS == True:
-            Label2.config(text="\t".join(map(str, CLIENTS)))
+        Label2.config(text="\t".join(map(str, CLIENTS)))
     else:
         Label2.config(text = "No Client Connected")
     root.after(1000, lambda: show_names(Label2, root))
@@ -71,6 +72,8 @@ class Server():
         self.client = client
         self.addr = addr
         self.thread1 = None
+        self.thread2 = None
+        self.polling = False
 
     # function to check the username of the incoming clients
     def usernameChecker(self):
@@ -89,6 +92,7 @@ class Server():
             if username not in CLIENTS:
                 # add client username and it's address to the clients dictionary
                 CLIENTS[username] = self.addr
+                self.polling = True
                 print(f'{username} added to the list')
                 self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
                 
@@ -99,7 +103,7 @@ class Server():
             count += 1
             print(CLIENTS)
 
-            return username
+            return USER_STATUS,username
         
         except:
             print(f'[ERROR] Error at username at server side..')
@@ -155,7 +159,10 @@ class Server():
         global count
         global USER_STATUS
         # check for username
-        username = self.usernameChecker()
+        USER_STATUS,username = self.usernameChecker()
+         # Forking a thread for polling
+        # self.thread2 = threading.Thread(target= self.poll, args=())
+        # self.thread2.start()
         print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
         try:
             # while user is active the following while loop works
@@ -172,12 +179,20 @@ class Server():
                     
         except:
             pass
+    
+    def poll(self):
+        # while user is active the following while loop works
+        self.polling = True
+        while self.polling:
+            time.sleep(5)
+            self.client.send('POLL'.encode(FORMAT))
+            continue
+
 
     def start(self):
         # Forking a thread for each client
-        self.thread1 = threading.Thread(target= self.handle, args=())
-        self.thread1.start()  
-        self.thread1.join()
+        threading.Thread(target= self.handle, args=()).start()
+ 
 
 
 # Main program
