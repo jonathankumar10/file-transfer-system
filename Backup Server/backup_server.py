@@ -68,14 +68,12 @@ def tkinter_display():
 # Server class for server functionalities
 class Server():
     # Server code
-    def __init__(self,client,addr,bclient):
+    def __init__(self,client,addr):
         self.client = client
         self.addr = addr
-        self.bclient= bclient
         self.thread1 = None
         self.thread2 = None
         self.polling = False
-        
 
     # function to check the username of the incoming clients
     def usernameChecker(self):
@@ -202,11 +200,9 @@ if __name__ == '__main__':
     
     # Global constants
     BUFFER = 1024
-    PORT = 5050
-    BACKUP_PORT = 6060
+    PORT = 6060
     HOST = socket.gethostbyname(socket.gethostname())
-    ADDR = (HOST,PORT)
-    BACKUPADDR=(HOST,BACKUP_PORT)
+    BACKUPADDR = (HOST,PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MSG = "[DISCONNECT] Disconnected."
 
@@ -220,7 +216,7 @@ if __name__ == '__main__':
         
         # server creation
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind(ADDR)
+        server.bind(BACKUPADDR)
         # server listens for incoming clients
         server.listen()
 
@@ -230,21 +226,15 @@ if __name__ == '__main__':
         # create a new thread for the GUI
         threading.Thread(target = tkinter_display).start()
 
-        bclient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('[WAITING] Waiting to connect to the backup server..')
-
-        bclient.connect(BACKUPADDR)
-        print(f'[CONNECTED] Connected to backupserver with address : {BACKUPADDR}..')
-
-        bclient.send('YOOOOOOOOOOO'.encode(FORMAT))
-
         while True:
             # Handles connection from incoming clients
             client,addr = server.accept()
-            client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
+            # client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
             # save client and client address to the ADDRESS dictionary 
             ADDRESSES[client] = addr
-            Server(client, addr, bclient).start()
+            # Server(client, addr).start()
+            first_message = client.recv(BUFFER).decode(FORMAT)
+            print(first_message)
     
     except socket.error as e:
         print('[ERROR] Server could not be established at main')

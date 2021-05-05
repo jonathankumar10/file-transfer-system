@@ -195,7 +195,7 @@ if __name__ == '__main__':
         first_message = client.recv(BUFFER).decode(FORMAT)
         user_label(first_message)
 
-        # Function to ask for the username
+        # Function to ask for the username 
         USER_STATUS, username= Client().usernamecheck(client)
 
         button_quit = tk.Button(screen, text='Exit Program', command = quitbutton)
