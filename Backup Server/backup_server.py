@@ -160,14 +160,17 @@ class Server():
         global USER_STATUS
         # check for username
         USER_STATUS,username = self.usernameChecker()
-         # Forking a thread for polling
-        # self.thread2 = threading.Thread(target= self.poll, args=())
-        # self.thread2.start()
+         
         print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
         try:
             # while user is active the following while loop works
             while USER_STATUS:
                 message = self.client.recv(BUFFER).decode(FORMAT)
+
+                if ' ' in message:
+                    a = message.split(' ')
+                    BCLIENTS[a[2]] = a[1]
+                    print(a)
 
                 if message== 'END':
                     self.delete_clients(username)
@@ -176,7 +179,10 @@ class Server():
                 if message == 'SENDGET':
                     self.file_transfer(self.client)
                     continue
-                    
+                
+                if message == 'POLL':
+                    print(message)
+
         except:
             pass
     
@@ -211,6 +217,7 @@ if __name__ == '__main__':
     ADDRESSES = {}
     count = 0
     USER_STATUS = False
+    BCLIENTS = {}
 
     try:
         
@@ -229,12 +236,16 @@ if __name__ == '__main__':
         while True:
             # Handles connection from incoming clients
             client,addr = server.accept()
-            # client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
-            # save client and client address to the ADDRESS dictionary 
-            ADDRESSES[client] = addr
-            # Server(client, addr).start()
-            first_message = client.recv(BUFFER).decode(FORMAT)
-            print(first_message)
+            client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
+            port = addr[1]
+            if port in BCLIENTS:
+                ADDRESSES[BCLIENTS[port]] = addr
+            else:
+                # save client and client address to the ADDRESS dictionary 
+                ADDRESSES[client] = addr
+                
+            Server(client, addr).start()
+
     
     except socket.error as e:
         print('[ERROR] Server could not be established at main')

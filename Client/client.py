@@ -4,12 +4,7 @@ import tkinter as tk
 from tkinter import *
 import threading
 from queue import Queue
-
-# function to close the gui once called
-def quitbutton():
-    client.send('END'.encode(FORMAT))
-    print('[CLOSED] Client has been closed')
-    root.destroy()
+import sys
     
 def user_label(VALUE):
     # configures userlabel
@@ -44,43 +39,53 @@ def queue_maker(username):
 
 # Client class for server functionalities
 class Client():
-    
+    def __init__(self,host):
+        self.host = host
+        self.client = None
+        self.USER_STATUS = False
+        self.c = 0
+
+    # function to close the gui once called
+    def quitbutton(self):
+        self.client.send('END'.encode(FORMAT))
+        print('[CLOSED] Client has been closed')
+        self.client.close()
+        # root.destroy()
+
     # function to check the username of the client
-    def usernamecheck(self,client):
-        
-        USER_STATUS = False
+    def usernamecheck(self):
         try:
-            while not USER_STATUS:
+            while not self.USER_STATUS:
                 username = user_entry(Button1, int_var)
                 print(f'[SENT] Username: {username} sent to the server')
-                client.send(username.encode(FORMAT))
+                self.client.send(username.encode(FORMAT))
             
-                response = client.recv(BUFFER).decode(FORMAT)
+                response = self.client.recv(BUFFER).decode(FORMAT)
                 if response == 'Username Exists and is Active':
                     print(f'[USERNAME TAKEN] {response}')
                     Label1.config(text ='Username Exists and is Active' )
                     continue
 
                 # User_status is set to true if the username is accepted and the client has gained entry post username checking
-                USER_STATUS = True
+                self.USER_STATUS = True
             
             USERNAME_CLIENT.append(username)
             queue_maker(username)
 
-            return (USER_STATUS , username)
+            return (self.USER_STATUS , username)
 
         except:
             print(f'[ERROR] Error at username at server side..')
-            client.close()
+            self.client.close()
         
-    def file_transfer(self,client):
+    def file_transfer(self):
         try:
             while True:
                 # sends filename
                 user_label('Enter name of the file: ')
                 filename = user_entry(Button1, int_var)
                 
-                client.send(filename.encode(FORMAT))
+                self.client.send(filename.encode(FORMAT))
                 print('filename is : ', filename)
 
                 f = open(filename, "rb")
@@ -92,68 +97,109 @@ class Client():
                     break
                 else:
                     # sends contents of file
-                    client.send(data)
+                    self.client.send(data)
                     print(f'Sent {data!r}')
                     data = f.read(BUFFER)
                 
                 # response or the spell checked data from server to client
-                response = client.recv(BUFFER).decode(FORMAT)
-                print('response is :' ,response)
-                f = open(filename, "w")
-                f.write(response)
-                user_label('Recieved file from server...')
-                del_user_entry2()
-                f.close()
-
-                print('Done sending')
-                break
+                response = self.client.recv(BUFFER).decode(FORMAT)
+                while response == 'POLL':
+                    print(response)
+                    response = self.client.recv(BUFFER).decode(FORMAT)
+                
+                self.file_write(response)
+                
 
         except Exception as e:
             print('[ERROR] Error at Client at file transfer', e)
 
+    def file_write(self,response):
+        print('response is :' ,response)
+        f = open('response.txt', "w")
+        f.write(response)
+        user_label('Recieved file from server...')
+        del_user_entry2()
+        f.close()
+
+        print('Done sending')
+
+
     # function to recieve messages    
-    def listener(self):
-        global LEXICON_QUEUES
-        while True:
-            message = client.recv(BUFFER).decode(FORMAT)
-            continue
+    def listener(self, INIT):
+        try:
+            print(INIT)
+            if INIT == True:
+                self.client.send('POLL'.encode(FORMAT))
+                INIT =False
+            while self.USER_STATUS:
+                message = self.client.recv(BUFFER).decode(FORMAT)
+                if message == 'POLL':
+                    self.c += 1
+                    print(message)
+                    self.client.send('POLL'.encode(FORMAT))
+                    continue
+
+                else:
+                    self.file_write(message)
+
+        except ConnectionResetError:
+            print('Main server is down!!')
+            self.client.close()
+            self.connection(6060)
+
     
     # function to send messages
     def handle(self):
-        while USER_STATUS != False:
-            choice = input("Type the word 'SENDGET' to initialize file upload...")
+        while self.USER_STATUS != False:
+            user_label("Type the word 'SENDGET' to initialize file upload...")
+            choice = user_entry(Button1, int_var)
 
             if choice == 'SENDGET':
-                client.send(choice.encode(FORMAT))
-                Client().file_transfer(client)
+                self.connection_checker()
+                self.client.send(choice.encode(FORMAT))
+                self.file_transfer()
                 continue
             
             if choice == 'END':
-                USER_STATUS = False
+                self.USER_STATUS = False
                 break
     
     def start(self):
         # Function to ask for the username
-        USER_STATUS, username= self.usernamecheck(client)
+        self.USER_STATUS, username= self.usernamecheck()
 
-        if USER_STATUS:
+        if self.USER_STATUS:
             print(f"Client {username} Has been connected")
             threading.Thread(target= self.handle, args=()).start()
-            threading.Thread(target= self.listener, args=()).start()
+            threading.Thread(target= self.listener, args=([True])).start()
+
+    def connection(self, port):
+        ADDR = (self.host,port)
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('[WAITING] Waiting to connect to the server..')
+
+        self.client.connect(ADDR)
+        print(f'[CONNECTED] Connected to {ADDR}..')
+    
+    def connection_checker(self):
+        # checks if the main server is active or not
+        self.client.send('HELLO'.encode(FORMAT))
 
 if __name__ == '__main__':
     
     # Global constants
     BUFFER = 1024
-    PORT = 5050
+    # PORT = 5050
     HOST = socket.gethostbyname(socket.gethostname())
-    ADDR = (HOST,PORT)
+    # ADDR = (HOST,PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MSG = "[DISCONNECT] Disconnected."
 
     #Global variables
     LEXICON_QUEUES = {}  # handles usernames and their lexicon inputs
     USERNAME_CLIENT = []  # for username checking and handling
+
+    client = Client(HOST)
 
     try:
 
@@ -177,13 +223,9 @@ if __name__ == '__main__':
         Label2 = tk.Label(screen)
         Label2.pack(padx=100,pady=4)
 
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('[WAITING] Waiting to connect to the server..')
+        client.connection(5050)
 
-        client.connect(ADDR)
-        print(f'[CONNECTED] Connected to {ADDR}..')
-
-        first_message = client.recv(BUFFER).decode(FORMAT)
+        first_message = client.client.recv(BUFFER).decode(FORMAT)
         user_label(first_message)
 
         Entry1 = tk.Entry(screen)
@@ -192,16 +234,10 @@ if __name__ == '__main__':
         Button1 = tk.Button(screen, text='Enter',command=lambda: int_var.set(1))
         Button1.pack(side=TOP, expand=True, fill=BOTH)
 
-        first_message = client.recv(BUFFER).decode(FORMAT)
-        user_label(first_message)
-
-        # Function to ask for the username 
-        USER_STATUS, username= Client().usernamecheck(client)
-
-        button_quit = tk.Button(screen, text='Exit Program', command = quitbutton)
+        button_quit = tk.Button(screen, text='Exit Program', command = client.quitbutton)
         button_quit.pack(side=TOP, expand=True, fill=BOTH)
 
-        Client().start()
+        client.start()
 
         root.mainloop()
 

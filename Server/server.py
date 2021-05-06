@@ -8,8 +8,8 @@ import time
 # function to close the gui and server once called
 def quit(root):
     print('[CLOSED] Server has been closed')
-    root.destroy()
     server.close()
+    root.destroy()
 
 # function to update count on the GUI every second
 def update(Label1,root):
@@ -68,15 +68,14 @@ def tkinter_display():
 # Server class for server functionalities
 class Server():
     # Server code
-    def __init__(self,client,addr,bclient):
+    def __init__(self,client,addr):
         self.client = client
         self.addr = addr
-        self.bclient= bclient
+        # self.bclient= bclient
         self.thread1 = None
         self.thread2 = None
         self.polling = False
         
-
     # function to check the username of the incoming clients
     def usernameChecker(self):
         FLAG = False
@@ -97,13 +96,16 @@ class Server():
                 self.polling = True
                 print(f'{username} added to the list')
                 self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
+                # info = 'cc '+username +' '+self.addr[1]
+                # print(info)
+                # self.bclient.send(info.encode(FORMAT)+self.addr)
+                # print('Sent the username to the backup server for storage')
                 
             global USER_STATUS
             global count
 
             USER_STATUS =True
             count += 1
-            print(CLIENTS)
 
             return USER_STATUS,username
         
@@ -114,33 +116,42 @@ class Server():
     # function to check and apply file transfer and lexicon checking
     def file_transfer(self,client):
         try:
-            while True:
-                    # Open server lexicon
-                    f = open('server.txt', "r")
-                    serverlexicon = f.read()
-                    LEXICON_LIST = serverlexicon.split()
+            # Open server lexicon
+            f = open('server.txt', "r")
+            serverlexicon = f.read()
+            LEXICON_LIST = serverlexicon.split()
 
-                    output = ""
-                    print ('[WAITING] Awaiting command from client..')
-                    print('[WAITING] What is the filename')
+            output = ""
+            print ('[WAITING] Awaiting command from client..')
+            print('[WAITING] What is the filename')
 
-                    # filename asked
-                    filename = client.recv(BUFFER).decode(FORMAT)
-                    print('filename is :',filename)
+            # filename asked
+            filename = client.recv(BUFFER).decode(FORMAT)
+            while filename == 'POLL' or filename == '':
+                print('POLL')
+                filename = client.recv(BUFFER).decode(FORMAT)
 
-                    # contents of user supplied text comapred to the lexcion present in server
-                    data = client.recv(BUFFER).decode(FORMAT)
-                    for input_word in data.split():
-                        if input_word in LEXICON_LIST:
-                            out = f"[{input_word}] "
-                            output += out
-                        else:
-                            output += f"{input_word} "
+            print('filename is :',filename)
 
-                    print('op is : ',output)
-                    # sends the updated file back to the client
-                    client.send(output.encode(FORMAT))
-                    break
+            # contents of user supplied text comapred to the lexcion present in server
+            data = client.recv(BUFFER).decode(FORMAT)
+            while data == 'POLL' or data == '':
+                print('POLL')
+                data = client.recv(BUFFER).decode(FORMAT)
+            
+            print('data is :',data)
+
+            for input_word in data.split():
+                if input_word in LEXICON_LIST:
+                    out = f"[{input_word}] "
+                    output += out
+                else:
+                    output += f"{input_word} "
+
+            print('op is : ',output)
+            # sends the updated file back to the client
+            client.send(output.encode(FORMAT))
+
 
         except Exception as e:
             print(e)
@@ -157,28 +168,39 @@ class Server():
         USER_STATUS = False
     
     # main server function that handles incoming messages from clients    
-    def handle(self):
+    def recieve(self):
         global count
         global USER_STATUS
         # check for username
         USER_STATUS,username = self.usernameChecker()
-         # Forking a thread for polling
-        # self.thread2 = threading.Thread(target= self.poll, args=())
-        # self.thread2.start()
+
         print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
+        
+        threading.Thread(target= self.poll, args=()).start()
+
         try:
             # while user is active the following while loop works
             while USER_STATUS:
+
+
                 message = self.client.recv(BUFFER).decode(FORMAT)
 
+                if message == 'SENDGET':
+                    self.file_transfer(self.client)
+                    continue
+                
                 if message== 'END':
                     self.delete_clients(username)
                     continue
                 
-                if message == 'SENDGET':
-                    self.file_transfer(self.client)
+                if message == 'HELLO':
+                    print(message)
                     continue
+
+                if message == 'POLL':
+                    print(message)
                     
+  
         except:
             pass
     
@@ -188,12 +210,11 @@ class Server():
         while self.polling:
             time.sleep(5)
             self.client.send('POLL'.encode(FORMAT))
-            continue
-
 
     def start(self):
         # Forking a thread for each client
-        threading.Thread(target= self.handle, args=()).start()
+        threading.Thread(target= self.recieve, args=()).start()
+
  
 
 
@@ -215,6 +236,7 @@ if __name__ == '__main__':
     ADDRESSES = {}
     count = 0
     USER_STATUS = False
+    BCLIENTS= {}
 
     try:
         
@@ -230,21 +252,21 @@ if __name__ == '__main__':
         # create a new thread for the GUI
         threading.Thread(target = tkinter_display).start()
 
-        bclient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('[WAITING] Waiting to connect to the backup server..')
+        # bclient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # print('[WAITING] Waiting to connect to the backup server..')
 
-        bclient.connect(BACKUPADDR)
-        print(f'[CONNECTED] Connected to backupserver with address : {BACKUPADDR}..')
-
-        bclient.send('YOOOOOOOOOOO'.encode(FORMAT))
+        # bclient.connect(BACKUPADDR)
+        # print(f'[CONNECTED] Connected to backupserver with address : {BACKUPADDR}')
 
         while True:
             # Handles connection from incoming clients
             client,addr = server.accept()
+            print(client)
+            print(addr)
             client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
             # save client and client address to the ADDRESS dictionary 
             ADDRESSES[client] = addr
-            Server(client, addr, bclient).start()
+            Server(client, addr).start()
     
     except socket.error as e:
         print('[ERROR] Server could not be established at main')
