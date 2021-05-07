@@ -43,7 +43,7 @@ def tkinter_display():
     # GUI Title
     title1 = tk.Label(screen, text="File Transfer system")
     title1.pack(pady=20)
-    title2 = tk.Label(screen, text="Server")
+    title2 = tk.Label(screen, text="Backup Server")
     title2.pack(pady=5)
 
     # GUI Active usernames and Total number of users 
@@ -74,76 +74,51 @@ class Server():
         self.thread1 = None
         self.thread2 = None
         self.polling = False
-
-    # function to check the username of the incoming clients
-    def usernameChecker(self):
-        FLAG = False
-        try:
-            # the following loop runs till the client enetrs an unused username
-            while not FLAG:
-                username = self.client.recv(BUFFER).decode(FORMAT)
-                print(f'Username sent from the client is {username}')
-                if (username in CLIENTS):
-                    message = 'Username Exists and is Active'
-                    self.client.send(message.encode(FORMAT))
-                    continue
-                FLAG = True
-
-            if username not in CLIENTS:
-                # add client username and it's address to the clients dictionary
-                CLIENTS[username] = self.addr
-                self.polling = True
-                print(f'{username} added to the list')
-                self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
-                
-            global USER_STATUS
-            global count
-
-            USER_STATUS =True
-            count += 1
-            print(CLIENTS)
-
-            return USER_STATUS,username
-        
-        except:
-            print(f'[ERROR] Error at username at server side..')
-            server.close()
     
     # function to check and apply file transfer and lexicon checking
     def file_transfer(self,client):
         try:
-            while True:
-                    # Open server lexicon
-                    f = open('server.txt', "r")
-                    serverlexicon = f.read()
-                    LEXICON_LIST = serverlexicon.split()
+            # Open server lexicon
+            f = open('server.txt', "r")
+            serverlexicon = f.read()
+            LEXICON_LIST = serverlexicon.split()
 
-                    output = ""
-                    print ('[WAITING] Awaiting command from client..')
-                    print('[WAITING] What is the filename')
+            output = ""
+            print ('[WAITING] Awaiting command from client..')
+            print('[WAITING] What is the filename')
 
-                    # filename asked
-                    filename = client.recv(BUFFER).decode(FORMAT)
-                    print('filename is :',filename)
+            # filename asked
+            filename = client.recv(BUFFER).decode(FORMAT)
+            while filename == 'POLL' or filename == '':
+                print('POLL')
+                filename = client.recv(BUFFER).decode(FORMAT)
 
-                    # contents of user supplied text comapred to the lexcion present in server
-                    data = client.recv(BUFFER).decode(FORMAT)
-                    for input_word in data.split():
-                        if input_word in LEXICON_LIST:
-                            out = f"[{input_word}] "
-                            output += out
-                        else:
-                            output += f"{input_word} "
+            print('filename is :',filename)
 
-                    print('op is : ',output)
-                    # sends the updated file back to the client
-                    client.send(output.encode(FORMAT))
-                    break
+            # contents of user supplied text comapred to the lexcion present in server
+            data = client.recv(BUFFER).decode(FORMAT)
+            while data == 'POLL' or data == '':
+                print('POLL')
+                data = client.recv(BUFFER).decode(FORMAT)
+            
+            print('data is :',data)
+
+            for input_word in data.split():
+                if input_word in LEXICON_LIST:
+                    out = f"[{input_word}] "
+                    output += out
+                else:
+                    output += f"{input_word} "
+
+            print('op is : ',output)
+            # sends the updated file back to the client
+            client.send(output.encode(FORMAT))
+
 
         except Exception as e:
             print(e)
             print('[ERROR] Error at the file transactions section at Server')
-    
+
     # delete clients and their threads once disconnected
     def delete_clients(self,username):
         global count
@@ -167,20 +142,49 @@ class Server():
         count += 1
         print(CLIENTS)
 
+    def handle_lexiconupdate(self,message):
+        output = ''
+        # Open server lexicon
+        f = open('server.txt', "r")
+        serverlexicon = f.read()
+        # take contents of lexicon into list
+        LEXICON_LIST = serverlexicon.split()
+        print(LEXICON_LIST)
+        f.close()
+        # take contents of messages sent from client into list
+        messagelist = message.split()
+        messagelist.pop(0) 
+        print(messagelist)
 
+        # add lists
+        final_list = LEXICON_LIST + messagelist
+        print(final_list)
+
+        final = list(set(final_list))
+        print(final)
+
+        
+        g = open('server.txt', "w")
+        
+        # store the final list into a string and add them to file
+        for input_word in final:
+            out = f"{input_word} "
+            output += out
+        print(output)
+        g.write(output)
+        
+        g.close()
     
     # main server function that handles incoming messages from clients    
     def handle(self):
         global count
         global USER_STATUS
-        # # check for username
-        # USER_STATUS,username = self.usernameChecker()
-         
-        # print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
+
         try:
             # while user is active the following while loop works
             while True:
                 message = self.client.recv(BUFFER).decode(FORMAT)
+                print(message)
 
                 if ' ' in message:
                     a = message.split(' ')
@@ -201,6 +205,10 @@ class Server():
                 if message in BCLIENTS:
                     CLIENTS[message] = self.addr
                     self.username_handle(message)
+                
+                if 'PONG' in message:
+                    self.handle_lexiconupdate(message)
+                    continue
 
         except:
             pass
@@ -255,14 +263,6 @@ if __name__ == '__main__':
         while True:
             # Handles connection from incoming clients
             client,addr = server.accept()
-            client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
-
-            # if  in BCLIENTS:
-            #     ADDRESSES[BCLIENTS[port]] = addr
-            # else:
-            #     # save client and client address to the ADDRESS dictionary 
-            #     ADDRESSES[client] = addr
-            # print(ADDRESSES)
                 
             Server(client, addr).start()
 

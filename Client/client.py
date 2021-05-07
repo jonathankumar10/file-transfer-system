@@ -47,7 +47,8 @@ class Client():
         self.un = ''
 
     # function to close the gui once called
-    def quitbutton(self,root):
+    def quitbutton(self):
+        global root
         self.client.send('END'.encode(FORMAT))
         print('[CLOSED] Client has been closed')
         self.client.close()
@@ -116,6 +117,9 @@ class Client():
             print('[ERROR] Error at Client at file transfer', e)
 
     def file_write(self,response):
+        while response == 'Username Exists and is Active' or response == '':
+            print(response)
+            response = self.client.recv(BUFFER).decode(FORMAT)
         print('response is :' ,response)
         f = open('response.txt', "w")
         f.write(response)
@@ -136,7 +140,7 @@ class Client():
                 lexicon_val.put(lexicon)
                 LEXICON_QUEUES[username] = lexicon_val
                 print(
-                    f'LEXICON_QUEUES is {LEXICON_QUEUES} and the username is {LEXICON_QUEUES.keys()} and the length is {LEXICON_QUEUES[username].qsize()}')
+                    f'LEXICON_QUEUES is {LEXICON_QUEUES} and the username is {LEXICON_QUEUES.keys()}, the content is {LEXICON_QUEUES[username]} and the length is {LEXICON_QUEUES[username].qsize()}')
             else:
                 print("Recipient Doesn't Exist")
         return LEXICON_QUEUES
@@ -155,6 +159,7 @@ class Client():
                     # send to server
                     self.client.send(mes.encode(FORMAT))
                 else:
+                    print('Queue is now emptied')
                     continue
 
 
@@ -177,6 +182,7 @@ class Client():
 
         except ConnectionResetError:
             print('Main server is down!!')
+            user_label('Main server is down!!')
             self.client.close()
             self.connection(6060)
 

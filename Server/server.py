@@ -198,7 +198,6 @@ class Server():
             output += out
         print(output)
         g.write(output)
-        
         g.close()
     
     # main server function that handles incoming messages from clients    
@@ -226,15 +225,12 @@ class Server():
                 if message== 'END':
                     self.delete_clients(username)
                     continue
-                
-                if message == 'HELLO':
-                    print(message)
-                    continue
 
                 if message == 'POLL':
                     print(message)
+                    continue
                 
-                if message == 'PONG':
+                if 'PONG' in message:
                     self.handle_lexiconupdate(message)
                     continue
 
