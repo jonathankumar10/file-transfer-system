@@ -153,24 +153,39 @@ class Server():
         count -=1
         self.thread1.join()
         USER_STATUS = False
+
+    def username_handle(self,username):
+        print(f'Username sent from the client is {username}')
+        if (username in CLIENTS):
+            message = 'Username Exists and is Active'
+            self.client.send(message.encode(FORMAT))
+            
+        global USER_STATUS
+        global count
+
+        USER_STATUS =True
+        count += 1
+        print(CLIENTS)
+
+
     
     # main server function that handles incoming messages from clients    
     def handle(self):
         global count
         global USER_STATUS
-        # check for username
-        USER_STATUS,username = self.usernameChecker()
+        # # check for username
+        # USER_STATUS,username = self.usernameChecker()
          
-        print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
+        # print(f'[CONNECTED] Connected to {self.addr} and the username is:{username} and the count is {count}')
         try:
             # while user is active the following while loop works
-            while USER_STATUS:
+            while True:
                 message = self.client.recv(BUFFER).decode(FORMAT)
 
                 if ' ' in message:
                     a = message.split(' ')
-                    BCLIENTS[a[2]] = a[1]
-                    print(a)
+                    BCLIENTS.append(a[1])
+                    print(f'BCLIENT is {BCLIENTS}')
 
                 if message== 'END':
                     self.delete_clients(username)
@@ -182,6 +197,10 @@ class Server():
                 
                 if message == 'POLL':
                     print(message)
+                
+                if message in BCLIENTS:
+                    CLIENTS[message] = self.addr
+                    self.username_handle(message)
 
         except:
             pass
@@ -217,7 +236,7 @@ if __name__ == '__main__':
     ADDRESSES = {}
     count = 0
     USER_STATUS = False
-    BCLIENTS = {}
+    BCLIENTS = []
 
     try:
         
@@ -237,12 +256,13 @@ if __name__ == '__main__':
             # Handles connection from incoming clients
             client,addr = server.accept()
             client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
-            port = addr[1]
-            if port in BCLIENTS:
-                ADDRESSES[BCLIENTS[port]] = addr
-            else:
-                # save client and client address to the ADDRESS dictionary 
-                ADDRESSES[client] = addr
+
+            # if  in BCLIENTS:
+            #     ADDRESSES[BCLIENTS[port]] = addr
+            # else:
+            #     # save client and client address to the ADDRESS dictionary 
+            #     ADDRESSES[client] = addr
+            # print(ADDRESSES)
                 
             Server(client, addr).start()
 

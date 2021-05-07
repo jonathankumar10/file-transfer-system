@@ -68,10 +68,10 @@ def tkinter_display():
 # Server class for server functionalities
 class Server():
     # Server code
-    def __init__(self,client,addr):
+    def __init__(self,client,addr,bclient):
         self.client = client
         self.addr = addr
-        # self.bclient= bclient
+        self.bclient= bclient
         self.thread1 = None
         self.thread2 = None
         self.polling = False
@@ -96,10 +96,11 @@ class Server():
                 self.polling = True
                 print(f'{username} added to the list')
                 self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
-                # info = 'cc '+username +' '+self.addr[1]
-                # print(info)
-                # self.bclient.send(info.encode(FORMAT)+self.addr)
-                # print('Sent the username to the backup server for storage')
+                ad,port = self.addr
+                info = 'cc '+username
+                print(info)
+                self.bclient.send(info.encode(FORMAT))
+                print('Sent the username to the backup server for storage')
                 
             global USER_STATUS
             global count
@@ -167,6 +168,39 @@ class Server():
         self.thread1.join()
         USER_STATUS = False
     
+    def handle_lexiconupdate(self,message):
+        output = ''
+        # Open server lexicon
+        f = open('server.txt', "r")
+        serverlexicon = f.read()
+        # take contents of lexicon into list
+        LEXICON_LIST = serverlexicon.split()
+        print(LEXICON_LIST)
+        f.close()
+        # take contents of messages sent from client into list
+        messagelist = message.split()
+        messagelist.pop(0) 
+        print(messagelist)
+
+        # add lists
+        final_list = LEXICON_LIST + messagelist
+        print(final_list)
+
+        final = list(set(final_list))
+        print(final)
+
+        
+        g = open('server.txt', "w")
+        
+        # store the final list into a string and add them to file
+        for input_word in final:
+            out = f"{input_word} "
+            output += out
+        print(output)
+        g.write(output)
+        
+        g.close()
+    
     # main server function that handles incoming messages from clients    
     def recieve(self):
         global count
@@ -199,10 +233,13 @@ class Server():
 
                 if message == 'POLL':
                     print(message)
-                    
-  
+                
+                if message == 'PONG':
+                    self.handle_lexiconupdate(message)
+                    continue
+
         except:
-            pass
+            print('Error at the handle function of server')
     
     def poll(self):
         # while user is active the following while loop works
@@ -252,11 +289,11 @@ if __name__ == '__main__':
         # create a new thread for the GUI
         threading.Thread(target = tkinter_display).start()
 
-        # bclient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # print('[WAITING] Waiting to connect to the backup server..')
+        bclient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('[WAITING] Waiting to connect to the backup server..')
 
-        # bclient.connect(BACKUPADDR)
-        # print(f'[CONNECTED] Connected to backupserver with address : {BACKUPADDR}')
+        bclient.connect(BACKUPADDR)
+        print(f'[CONNECTED] Connected to backupserver with address : {BACKUPADDR}')
 
         while True:
             # Handles connection from incoming clients
@@ -266,7 +303,7 @@ if __name__ == '__main__':
             client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
             # save client and client address to the ADDRESS dictionary 
             ADDRESSES[client] = addr
-            Server(client, addr).start()
+            Server(client, addr,bclient).start()
     
     except socket.error as e:
         print('[ERROR] Server could not be established at main')

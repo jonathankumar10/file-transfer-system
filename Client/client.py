@@ -5,6 +5,7 @@ from tkinter import *
 import threading
 from queue import Queue
 import sys
+import time
     
 def user_label(VALUE):
     # configures userlabel
@@ -43,20 +44,21 @@ class Client():
         self.host = host
         self.client = None
         self.USER_STATUS = False
-        self.c = 0
+        self.un = ''
 
     # function to close the gui once called
-    def quitbutton(self):
+    def quitbutton(self,root):
         self.client.send('END'.encode(FORMAT))
         print('[CLOSED] Client has been closed')
         self.client.close()
-        # root.destroy()
+        root.destroy()
 
     # function to check the username of the client
     def usernamecheck(self):
         try:
             while not self.USER_STATUS:
                 username = user_entry(Button1, int_var)
+                self.un = username
                 print(f'[SENT] Username: {username} sent to the server')
                 self.client.send(username.encode(FORMAT))
             
@@ -122,6 +124,38 @@ class Client():
         f.close()
 
         print('Done sending')
+    
+    def lexicon_additions(self,username):
+        global LEXICON_FLAG
+        user_label('Enter your choice of words for lexicon..')
+        lexicon = user_entry(Button1, int_var)
+        if username in USERNAME_CLIENT:
+            if username in LEXICON_QUEUES.keys():
+                # this loop basically stores username as keys and queue object as values for LEXICON_QUEUES dictionary
+                lexicon_val = LEXICON_QUEUES[username]
+                lexicon_val.put(lexicon)
+                LEXICON_QUEUES[username] = lexicon_val
+                print(
+                    f'LEXICON_QUEUES is {LEXICON_QUEUES} and the username is {LEXICON_QUEUES.keys()} and the length is {LEXICON_QUEUES[username].qsize()}')
+            else:
+                print("Recipient Doesn't Exist")
+        return LEXICON_QUEUES
+        
+    def lexicon_update(self,username):
+        global LEXICON_QUEUES
+        while True:
+            # if username present in lexicon dictionary keys
+            if username in LEXICON_QUEUES.keys():
+                time.sleep(60)
+                if LEXICON_QUEUES:
+                    print('Queue is not empty')
+                    # get the values from queue object
+                    a = LEXICON_QUEUES[username].get()
+                    mes = 'PONG '+a
+                    # send to server
+                    self.client.send(mes.encode(FORMAT))
+                else:
+                    continue
 
 
     # function to recieve messages    
@@ -134,7 +168,6 @@ class Client():
             while self.USER_STATUS:
                 message = self.client.recv(BUFFER).decode(FORMAT)
                 if message == 'POLL':
-                    self.c += 1
                     print(message)
                     self.client.send('POLL'.encode(FORMAT))
                     continue
@@ -149,15 +182,20 @@ class Client():
 
     
     # function to send messages
-    def handle(self):
+    def handle(self,username):
         while self.USER_STATUS != False:
-            user_label("Type the word 'SENDGET' to initialize file upload...")
+
+            user_label("Type the word 'SENDGET' to initialize file upload and type 'LEXICON' for lexicon update...")
             choice = user_entry(Button1, int_var)
 
             if choice == 'SENDGET':
-                self.connection_checker()
                 self.client.send(choice.encode(FORMAT))
                 self.file_transfer()
+                continue
+            
+            if choice == 'LEXICON':
+                LEXICON_FLAG = True
+                self.lexicon_additions(username)
                 continue
             
             if choice == 'END':
@@ -170,8 +208,9 @@ class Client():
 
         if self.USER_STATUS:
             print(f"Client {username} Has been connected")
-            threading.Thread(target= self.handle, args=()).start()
+            threading.Thread(target= self.handle, args=(username)).start()
             threading.Thread(target= self.listener, args=([True])).start()
+            threading.Thread(target= self.lexicon_update, args=(username)).start()
 
     def connection(self, port):
         ADDR = (self.host,port)
@@ -180,18 +219,14 @@ class Client():
 
         self.client.connect(ADDR)
         print(f'[CONNECTED] Connected to {ADDR}..')
-    
-    def connection_checker(self):
-        # checks if the main server is active or not
-        self.client.send('HELLO'.encode(FORMAT))
+
+        self.client.send(self.un.encode(FORMAT))
 
 if __name__ == '__main__':
     
     # Global constants
     BUFFER = 1024
-    # PORT = 5050
     HOST = socket.gethostbyname(socket.gethostname())
-    # ADDR = (HOST,PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MSG = "[DISCONNECT] Disconnected."
 
