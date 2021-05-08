@@ -188,7 +188,6 @@ class Server():
 
         final = list(set(final_list))
         print(final)
-
         
         g = open('server.txt', "w")
         
@@ -199,6 +198,9 @@ class Server():
         print(output)
         g.write(output)
         g.close()
+
+        mes = 'lexi '+ output
+        self.bclient.send(mes.encode(FORMAT))
     
     # main server function that handles incoming messages from clients    
     def recieve(self):

@@ -210,6 +210,11 @@ class Server():
                     self.handle_lexiconupdate(message)
                     continue
 
+                if 'lexi' in message:
+                    print(f'message is lexi is {message}')
+                    self.handle_lexiconupdate(message)
+                    continue
+
         except:
             pass
     
