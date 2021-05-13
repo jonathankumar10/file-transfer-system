@@ -129,6 +129,7 @@ class Server():
         self.thread1.join()
         USER_STATUS = False
 
+    # function to handle clients from primary server
     def username_handle(self,username):
         print(f'Username sent from the client is {username}')
         if (username in CLIENTS):
@@ -142,6 +143,7 @@ class Server():
         count += 1
         print(CLIENTS)
 
+    # function to handle incoming lexicons
     def handle_lexiconupdate(self,message):
         output = ''
         # Open server lexicon
@@ -214,7 +216,6 @@ class Server():
                     print(f'message is lexi is {message}')
                     self.handle_lexiconupdate(message)
                     continue
-
         except:
             pass
     
@@ -268,7 +269,6 @@ if __name__ == '__main__':
         while True:
             # Handles connection from incoming clients
             client,addr = server.accept()
-                
             Server(client, addr).start()
 
     

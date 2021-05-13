@@ -4,7 +4,6 @@ import tkinter as tk
 from tkinter import *
 import threading
 from queue import Queue
-import sys
 import time
     
 def user_label(VALUE):
@@ -80,8 +79,9 @@ class Client():
         except:
             print(f'[ERROR] Error at username at server side..')
             self.client.close()
-        
-    def file_transfer(self):
+
+    # function to send file 
+    def file_send(self):
         try:
             while True:
                 # sends filename
@@ -116,6 +116,7 @@ class Client():
         except Exception as e:
             print('[ERROR] Error at Client at file transfer', e)
 
+    # function to recieve file
     def file_write(self,response):
         while response == 'Username Exists and is Active' or response == '':
             print(response)
@@ -129,6 +130,7 @@ class Client():
 
         print('Done sending')
     
+    # function to push lexicon values to a queue object present in a dictionary
     def lexicon_additions(self,username):
         global LEXICON_FLAG
         user_label('Enter your choice of words for lexicon..')
@@ -144,7 +146,8 @@ class Client():
             else:
                 print("Recipient Doesn't Exist")
         return LEXICON_QUEUES
-        
+
+    # function to send lexicon updates to server        
     def lexicon_update(self,username):
         global LEXICON_QUEUES
         while True:
@@ -196,7 +199,7 @@ class Client():
 
             if choice == 'SENDGET':
                 self.client.send(choice.encode(FORMAT))
-                self.file_transfer()
+                self.file_send()
                 continue
             
             if choice == 'LEXICON':

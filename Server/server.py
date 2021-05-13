@@ -96,7 +96,6 @@ class Server():
                 self.polling = True
                 print(f'{username} added to the list')
                 self.client.send('[ADDED] Added to the username list at the server.'.encode(FORMAT))
-                ad,port = self.addr
                 info = 'cc '+username
                 print(info)
                 self.bclient.send(info.encode(FORMAT))
@@ -217,7 +216,6 @@ class Server():
             # while user is active the following while loop works
             while USER_STATUS:
 
-
                 message = self.client.recv(BUFFER).decode(FORMAT)
 
                 if message == 'SENDGET':
@@ -249,9 +247,6 @@ class Server():
     def start(self):
         # Forking a thread for each client
         threading.Thread(target= self.recieve, args=()).start()
-
- 
-
 
 # Main program
 if __name__ == '__main__':
@@ -296,8 +291,6 @@ if __name__ == '__main__':
         while True:
             # Handles connection from incoming clients
             client,addr = server.accept()
-            print(client)
-            print(addr)
             client.send("Greetings from the Server! Now type your username to enter!".encode(FORMAT))
             # save client and client address to the ADDRESS dictionary 
             ADDRESSES[client] = addr
